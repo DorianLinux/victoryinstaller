@@ -1,0 +1,197 @@
+#! /bin/bash
+
+function start_install {
+	clear
+
+	printf "Welcome to the VictoryOS Installer\n"
+	printf "__________________\n"
+	printf "This program uses a TUI (text user interface) to run the distro installation, so you will be using your keyboard in here\n"
+	printf "To resume, type a valid answer and press enter\n"
+	printf "do you understand? [yes/no]\n"
+	read -p "> " result
+	
+	if [ $result = "no" ]
+	then
+		echo "Ok we will exit you then :("		
+		exit
+	elif [ $result = "yes" ]
+	then
+		select_region
+	else
+		start_install
+	fi
+}
+
+function select_drive {
+	clear
+	lsblk
+	echo "This is your drive setup. Type "[drive] [partition]" to install to the partition you ask for (e.g. /dev/sda /dev/sda1)"
+	echo "If you do not see the drive you want to install to, type \"partition [drive]\" to enter cfdisk (e.g. partition /dev/sda)"
+	echo "NOTE: when partitioning your drive, it is suggested to also create a partition for your swap"
+	read -p '> ' result
+	IFS=' '
+	read -a args <<< "$result"
+
+
+	if [ ${args[0]} = "partition" ]
+	then
+		cfdisk ${args[1]}
+		select_drive
+	else
+		echo "is $result correct? [yes/no]"
+		read -p "!> " confirmation
+		if [ $confirmation = "yes" ]
+		then
+			drive=${args[0]}
+			partition=${args[1]}
+			select_swap
+		else
+			select_drive
+		fi
+	fi
+}
+
+function select_swap {
+	clear
+	lsblk
+	echo "Now please select your swap partition (e.g. /dev/sda1)"
+	read -p "> " result
+
+	echo "Are you sure this is the correct drive?"
+	read -p "!> " cofirmation
+	if [ $confirmation = "yes" ]
+	then
+		swap=$result
+	else
+		select_swap
+	fi
+}
+
+function select_region {
+	clear
+	ls /usr/share/zoneinfo
+	echo "-------"
+	echo "Please select a valid region"
+	read -p "> " result
+
+	if [ -d "/usr/share/zoneinfo/${result}" ]
+	then
+		region=$result
+		select_city
+	else
+		select_region
+	fi
+}
+
+function select_city {
+	clear
+	ls /usr/share/zoneinfo/$region
+	echo "--------"
+	echo "Please select a valid area for your timezone, or type \"back\" to go back"
+	read -p "> " result
+
+	if [ -f "/usr/share/zoneinfo/${region}/${result}" ]
+	then
+		city=$result
+		select_drive
+	elif [ $result = "back" ]
+	then
+		select_region
+	else
+		select_city
+	fi
+}
+
+function confirm_installation {
+	clear
+	echo "Congrats! You are on the last step of your installation!"
+	echo "Once you do this, uou can not turn back. pressing Ctrl+C will interrupt the installation requiring you to start from scratch"
+	echo "if uou are ready, please type \"YES\""
+	read -p "!> " confirmation
+
+	if [ $confirmation = "YES" ]
+	then
+		install_os
+	else
+		confirm_installation
+	fi
+}
+
+function create_user {
+	clear
+	echo "You will need to create a user for to login as"
+	echo "The username nor password can contain spaces"
+	echo "Please type your requested username"
+	read -p ">" password
+
+	if [[ $username =~ \  ]];
+	then
+		echo "now please write a password"
+		read -p "> " password
+
+		if [[ $password =~ \  ]];
+		then
+			clear
+			echo "Please confirm this is accurate"
+			echo "Username: $username"
+			echo "Password: $password"
+			echo "-------------------------------"
+			echo "Is this correct? [yes/no]"
+			read -p "!> " confirmation
+
+			if [ $confirmation = "yes" ]
+			then
+				confirm_installation
+			else
+				create_user
+			fi
+		else
+			create_user
+		fi
+	else
+		echo "Username contained an invalid character. Please try again"
+		create_user
+	fi
+}
+
+function install_os {
+	echo "Formatting Drives"
+	mkfs.ext4 $partition
+	mkswap $swap
+	echo "Mounting Drives"
+	mount $partition /mnt
+	swapon $swap
+
+	# Installing Necessary Packages
+	pacstrap /mnt base linux linux-firmware NetworkManager grub
+
+	# Pre-configuriation before changing root in there
+	genfstab -U /mnt >> /mnt/etc/fstab
+	
+	echo "Patching VICTORY pt. 1"
+	cp ./lsb-release /mnt/etc/lsb-release
+	cp ./os-release /mnt/etc/os-release
+
+	# Now we can change root
+	arch-chroot /mnt
+	
+	echo "Configuring clock"
+	lf -sf /usr/share/zoneinfo/${region}/${city} /etc/localtime
+	hwclock --systohc
+
+	# Insert Localization Code Here
+	# Why is this a comment? because I cannot think of how to setup this part yet
+
+	# User Management
+	chpasswd <<<"root:victoryisbetterthanarch"
+	useradd -m -G users -s /bin/bash $username
+	chpasswd <<<"${username}:${password}"
+
+	echo "Patching VICTORY pt. 2"
+	echo "victory" >> /etc/hostname
+	
+	# Installing the Bootloader
+	grub-install $drive
+}
+
+start_install
