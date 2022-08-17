@@ -38,7 +38,7 @@ function select_drive {
 		cfdisk ${args[1]}
 		select_drive
 	else
-		echo "is $result correct? [yes/no]"
+		echo "is ${args[0]} and ${args[1]} correct? [yes/no]"
 		read -p "!> " confirmation
 		if [ $confirmation = "yes" ]
 		then
@@ -166,10 +166,12 @@ function install_os {
 
 	# Now we can change root
 	echo "Changing root into $partiton"
-	arch-chroot /mnt
-	
+	arch-chroot /mnt os_install_step2
+}
+
+function os_install_step2 {
 	echo "Configuring clock"
-	lf -sf /usr/share/zoneinfo/${region}/${city} /etc/localtime
+	ln -sf /usr/share/zoneinfo/${region}/${city} /etc/localtime
 	hwclock --systohc
 
 	# Insert Localization Code Here
@@ -184,8 +186,8 @@ function install_os {
 	echo "Patching VICTORY pt. 2"
 	echo "victory" >> /etc/hostname
 	
-	# Installing the Bootloaderi
-	"Installing Bootloader"
+	# Installing the Bootloader
+	echo "Installing Bootloader"
 	grub-install $drive
 }
 
