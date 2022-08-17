@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 function start_install {
 	clear
@@ -62,6 +62,7 @@ function select_swap {
 	if [ $confirmation = "yes" ]
 	then
 		swap=$result
+		create_user
 	else
 		select_swap
 	fi
@@ -122,34 +123,23 @@ function create_user {
 	echo "You will need to create a user for to login as"
 	echo "The username nor password can contain spaces"
 	echo "Please type your requested username"
-	read -p ">" password
+	read -p ">" username
 
-	if [[ $username =~ \  ]];
+	echo "now please write a password"
+	read -p "> " password
+
+	clear
+	echo "Please confirm this is accurate"
+	echo "Username: $username"
+	echo "Password: $password"
+	echo "-------------------------------"
+	echo "Is this correct? [yes/no]"
+	read -p "!> " confirmation
+
+	if [ $confirmation = "yes" ]
 	then
-		echo "now please write a password"
-		read -p "> " password
-
-		if [[ $password =~ \  ]];
-		then
-			clear
-			echo "Please confirm this is accurate"
-			echo "Username: $username"
-			echo "Password: $password"
-			echo "-------------------------------"
-			echo "Is this correct? [yes/no]"
-			read -p "!> " confirmation
-
-			if [ $confirmation = "yes" ]
-			then
-				confirm_installation
-			else
-				create_user
-			fi
-		else
-			create_user
-		fi
+		confirm_installation
 	else
-		echo "Username contained an invalid character. Please try again"
 		create_user
 	fi
 }
@@ -163,9 +153,11 @@ function install_os {
 	swapon $swap
 
 	# Installing Necessary Packages
-	pacstrap /mnt base linux linux-firmware NetworkManager grub
+	echo "Installing Packages"
+	pacstrap /mnt base linux linux-firmware networkmanager grub
 
 	# Pre-configuriation before changing root in there
+	echo "Generating /etc/fstab"
 	genfstab -U /mnt >> /mnt/etc/fstab
 	
 	echo "Patching VICTORY pt. 1"
@@ -173,6 +165,7 @@ function install_os {
 	cp ./os-release /mnt/etc/os-release
 
 	# Now we can change root
+	echo "Changing root into $partiton"
 	arch-chroot /mnt
 	
 	echo "Configuring clock"
@@ -183,6 +176,7 @@ function install_os {
 	# Why is this a comment? because I cannot think of how to setup this part yet
 
 	# User Management
+	echo "Generating Users"
 	chpasswd <<<"root:victoryisbetterthanarch"
 	useradd -m -G users -s /bin/bash $username
 	chpasswd <<<"${username}:${password}"
@@ -190,7 +184,8 @@ function install_os {
 	echo "Patching VICTORY pt. 2"
 	echo "victory" >> /etc/hostname
 	
-	# Installing the Bootloader
+	# Installing the Bootloaderi
+	"Installing Bootloader"
 	grub-install $drive
 }
 
