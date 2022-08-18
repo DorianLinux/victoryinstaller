@@ -164,12 +164,10 @@ function install_os {
 	cp ./lsb-release /mnt/etc/lsb-release
 	cp ./os-release /mnt/etc/os-release
 
-	# Now we can change root
+	# Now we can change root and do the rest of the setup in there
 	echo "Changing root into $partiton"
-	arch-chroot /mnt os_install_step2
-}
+	arch-chroot /mnt /bin/bash
 
-function os_install_step2 {
 	echo "Configuring clock"
 	ln -sf /usr/share/zoneinfo/${region}/${city} /etc/localtime
 	hwclock --systohc
