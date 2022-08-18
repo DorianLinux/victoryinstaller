@@ -166,8 +166,20 @@ function install_os {
 
 	# Now we can change root and do the rest of the setup in there
 	echo "Changing root into $partiton"
-	chroot /mnt /bin/bash
 
+	# Carrying all the variables down that are needed into the new root
+	export -f install_second_step
+	export partition
+	export username
+	export password
+	export region
+	export city
+	export drive
+
+	arch-chroot /mnt /bin/bash -c "install_second_step"
+}
+
+function install_second_step {
 	echo "Configuring clock"
 	ln -sf /usr/share/zoneinfo/${region}/${city} /etc/localtime
 	hwclock --systohc
@@ -187,6 +199,7 @@ function install_os {
 	# Installing the Bootloader
 	echo "Installing Bootloader"
 	grub-install $drive
+	grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 start_install
