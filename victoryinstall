@@ -166,7 +166,7 @@ function install_os {
 
 	# Now we can change root and do the rest of the setup in there
 	echo "Changing root into $partiton"
-	arch-chroot /mnt /bin/bash
+	chroot /mnt /bin/bash
 
 	echo "Configuring clock"
 	ln -sf /usr/share/zoneinfo/${region}/${city} /etc/localtime
