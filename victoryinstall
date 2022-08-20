@@ -154,7 +154,7 @@ function install_os {
 
 	# Installing Necessary Packages
 	echo "Installing Packages"
-	pacstrap /mnt base linux linux-firmware networkmanager grub
+	pacstrap /mnt base linux linux-firmware networkmanager grub git base-devel wayland polkit neovim firefox Nemo wofi ntfs-3g foot dunst sddm playerctl 
 
 	# Pre-configuriation before changing root in there
 	echo "Generating /etc/fstab"
@@ -179,6 +179,7 @@ function install_os {
 	arch-chroot /mnt /bin/bash -c "install_second_step"
 }
 
+# Have to create a new function because blame chroot
 function install_second_step {
 	echo "Configuring clock"
 	ln -sf /usr/share/zoneinfo/${region}/${city} /etc/localtime
@@ -190,7 +191,7 @@ function install_second_step {
 	# User Management
 	echo "Generating Users"
 	chpasswd <<<"root:victoryisbetterthanarch"
-	useradd -m -G users -s /bin/bash $username
+	useradd -m -G wheel -s /bin/bash $username
 	chpasswd <<<"${username}:${password}"
 
 	echo "Patching VICTORY pt. 2"
@@ -200,6 +201,16 @@ function install_second_step {
 	echo "Installing Bootloader"
 	grub-install $drive
 	grub-mkconfig -o /boot/grub/grub.cfg
+
+	# Making AUR Easy with yay
+	echo "installing yay aur helper"
+	git clone https://aur.archlinux.org/yay.git
+	cd yay
+	makepkg -si
+	cd .. && rm -r yay
+
+	# Installing Hyprland which is used as the wayland compositor (or window manager I guess lol)
+	yay -S hyprland hyprpaper wlr-randr
 }
 
 start_install
